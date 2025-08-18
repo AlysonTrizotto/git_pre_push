@@ -1,75 +1,55 @@
-# README — Preparação e Validações para usar o Git Hook `pre-push`
+# Git Pre Push
 
-Este documento descreve como preparar o ambiente, instalar e validar o hook `pre-push` que executa os testes do Laravel antes de cada `git push`, pulando testes em produção.
-
-## Pré‑requisitos
-
-- [ ] **PHP no PATH (CLI)**: `php -v`
-- [ ] **Composer deps instaladas**: `composer install`
-- [ ] **Laravel na raiz** (arquivo `artisan` presente)
-- [ ] **Serviços usados nos testes disponíveis** (ex.: DB/Redis) ou configure SQLite para testes
-- [ ] **Git Bash (Windows)** ou shell POSIX para executar hooks `.sh`
-- [ ] **Final de linha LF (Unix)** no arquivo `.git/hooks/pre-push`
-- [ ] **Permissão de execução (Linux/macOS)**: `chmod +x .git/hooks/pre-push`
-
-## O que o hook faz
-
-- Executa a partir da **raiz do repositório**.
-- Detecta o ambiente via `APP_ENV` (variável de ambiente) ou `.env` (`APP_ENV=`).
-- **Se `APP_ENV=production`**: não roda testes e permite o push.
-- Caso contrário, roda `php artisan test` e bloqueia o push se os testes falharem.
-
-Trecho de detecção de ambiente:
-```sh
-ENVIRONMENT="${APP_ENV:-}"
-if [ -z "$ENVIRONMENT" ] && [ -f .env ]; then
-  ENVIRONMENT="$(grep -m1 -E '^APP_ENV=' .env | sed -E 's/^APP_ENV=//; s/["\r]//g')"
-fi
-ENVIRONMENT_LC="$(printf '%s' "$ENVIRONMENT" | tr '[:upper:]' '[:lower:]')"
-
-if [ "$ENVIRONMENT_LC" = "production" ]; then
-  echo "APP_ENV=production detectado. Pulando testes e permitindo push."
-  exit 0
-fi
-```
+Biblioteca PHP para automatizar o hook `pre-push` do Git, executando testes antes do push. Compatível com Laravel, Symfony, Yii e projetos sem framework.
 
 ## Instalação
 
-1. Copie o script para o caminho de hooks (se ainda não estiver):
-   - Caminho: `.git/hooks/pre-push`
-2. Garanta LF e permissões:
-   - Windows (Git Bash): configure o editor para salvar com **LF**
-   - Linux/macOS: `chmod +x .git/hooks/pre-push`
+```bash
+composer require alysontrizotto/git-pre-push
+```
 
-## Validações antes do uso
+## Instalação automática do hook
 
-- **Validar shell**: usar Git Bash (Windows) ou terminal (Linux/macOS)
-- **Validar PHP**: `php -v` deve funcionar
-- **Validar artisan**: na raiz do repo, `test -f artisan && echo ok`
-- **Validar serviços**: suba DB/Redis ou configure SQLite para teste
-- **Validar APP_ENV**:
-  - `.env` contém `APP_ENV=local|staging|production`
-  - Para simular produção temporariamente: `APP_ENV=production sh .git/hooks/pre-push` (deve pular testes)
+Após instalar, o hook será criado automaticamente em `.git/hooks/pre-push`.
+Se necessário, execute manualmente:
 
-## Como testar o hook
+```bash
+php vendor/bin/git-pre-push install-hook
+```
 
-- **Rodar manualmente** na raiz do repo:
-  - `sh .git/hooks/pre-push`
-- **Simular sucesso**: todos os testes verdes → mensagem “All tests passed. Proceeding with push.”
-- **Simular falha**: quebre um teste; deve bloquear com “Tests failed! Aborting push.”
-- **Simular produção**:
-  - Via variável: `APP_ENV=production sh .git/hooks/pre-push`
-  - Via `.env`: defina `APP_ENV=production` e rode o hook
+## Pré-requisitos
+
+- PHP CLI disponível (`php -v`)
+- Dependências instaladas (`composer install`)
+- Arquivo `.env.testing` na raiz do projeto
+
+## Funcionamento
+
+- O hook só executa em ambiente de desenvolvimento (não roda em produção)
+- Antes do push, executa os testes definidos na configuração
+- Se os testes falharem, o push é bloqueado
+
+## Configuração
+
+Crie um arquivo `git-pre-push.php` na raiz do projeto para customizar o comando de teste:
+
+```php
+return [
+  'test_command' => 'php artisan test', // Laravel
+  // 'test_command' => 'vendor/bin/phpunit', // PHPUnit
+];
+```
+
+## Uso avançado
+
+Você pode estender a biblioteca usando listeners, eventos e services para customizar o fluxo do hook.
 
 ## Solução de problemas
 
-- **^M no shebang/erro no sh (Windows)**: arquivo com CRLF. Converta para **LF**.
-- **Permissão negada (Linux/macOS)**: `chmod +x .git/hooks/pre-push`
-- **PHP não encontrado**: ajuste o **PATH** ou instale PHP CLI
-- **Banco indisponível**: use SQLite em `phpunit.xml`/`.env.testing` ou suba os serviços
-- **GUI de Git ignorando hooks**: use Git CLI/Git Bash ou configure a GUI para respeitar hooks
+- Se `.env.testing` não existir, o push será abortado
+- Dê permissão de execução ao hook: `chmod +x .git/hooks/pre-push`
+- Use sempre Git CLI ou Git Bash para garantir execução dos hooks
 
-## Notas
+## Licença
 
-- Hooks em `.git/hooks/` não são versionados por padrão. Para compartilhar no time, considere Lefthook/Overcommit/CaptainHook ou um script de bootstrap que copie o hook.
-- Em CI, rode testes no pipeline em vez de depender do hook local.
+MIT

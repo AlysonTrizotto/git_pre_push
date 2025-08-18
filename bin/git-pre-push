@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use GitPrePush\GitPrePush;
+
+function installHook(): void {
+    $hookPath = getcwd() . '/.git/hooks/pre-push';
+    $phpPath = PHP_BINARY;
+    $cmd = "$phpPath -r \"require 'vendor/autoload.php'; (new GitPrePush\\GitPrePush())->run();\"";
+    $hookContent = "#!/bin/sh\n$cmd\n";
+    file_put_contents($hookPath, $hookContent);
+    chmod($hookPath, 0755);
+    echo "Hook pre-push instalado em $hookPath\n";
+}
+
+if ($argc > 1 && $argv[1] === 'install-hook') {
+    installHook();
+    exit(0);
+}
+
+// Só executa se chamado diretamente (não via Composer scripts)
+if (php_sapi_name() === 'cli' && empty(getenv('COMPOSER_DEV_MODE'))) {
+    // Verifica existência do .env.testing
+    $envTestingPath = getcwd() . '/.env.testing';
+    if (!file_exists($envTestingPath)) {
+        echo "[ERRO] Arquivo .env.testing não encontrado. Crie um .env.testing para rodar os testes de push. Push abortado!\n";
+        exit(1);
+    }
+
+    // Garante que PHPUnit use o .env.testing
+    putenv('APP_ENV=testing');
+    putenv('ENV_FILE=.env.testing');
+
+    (new GitPrePush())->run();
+}
