@@ -3,6 +3,13 @@
   "description": "Biblioteca PHP para hooks de pre-push no Git.",
   "type": "composer-plugin",
   "license": "MIT",
+  "version": "1.0.0",
+  "keywords": ["git", "hook", "pre-push", "laravel", "phpunit", "composer-plugin"],
+  "homepage": "https://github.com/alysontrizotto/git-pre-push",
+  "support": {
+    "issues": "https://github.com/alysontrizotto/git-pre-push/issues",
+    "source": "https://github.com/alysontrizotto/git-pre-push"
+  },
   "autoload": {
     "psr-4": {
       "GitPrePush\\": "src/"

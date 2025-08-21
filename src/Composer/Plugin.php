@@ -30,7 +30,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     public function uninstall(Composer $composer, IOInterface $io)
     {
-        // no-op
+        // Ensure hook cleanup on plugin uninstall
+        $this->composer = $composer;
+        $this->io = $io;
+        $this->uninstallHookSafely();
     }
 
     public static function getSubscribedEvents(): array
@@ -54,6 +57,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         $this->installHookSafely();
+        $this->createConfigStubIfMissing();
     }
 
     public function onPostPackageUninstall(PackageEvent $event): void
@@ -82,7 +86,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             "  exit 0\n" .
             "fi\n\n" .
             "PHP_BIN=\"$phpPath\"\n" .
-            "if ! command -v \"\\$PHP_BIN\" >/dev/null 2>&1; then\n" .
+            'if ! command -v "$PHP_BIN" >/dev/null 2>&1; then' . "\n" .
             "  echo \"[git-pre-push] PHP não encontrado no PATH. Pulando hook.\"\n" .
             "  exit 0\n" .
             "fi\n\n" .
@@ -114,6 +118,47 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             $this->io->write("<info>[git-pre-push]</info> Hook pre-push removido: $hookPath");
         } else {
             $this->io->write("<error>[git-pre-push]</error> Falha ao remover o hook em $hookPath. Verifique permissões.");
+        }
+    }
+
+    /**
+     * Cria um arquivo de configuração padrão git-pre-push.php no diretório raiz do projeto
+     * caso ele não exista. Não sobrescreve arquivos existentes.
+     */
+    private function createConfigStubIfMissing(): void
+    {
+        $projectRoot = getcwd();
+        if (!$projectRoot) {
+            return;
+        }
+        $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'git-pre-push.php';
+        if (file_exists($configPath)) {
+            return; // do not overwrite
+        }
+
+        $stub = <<<'PHP'
+<?php
+// Configuração do pacote alysontrizotto/git-pre-push
+// Ajuste o comando abaixo conforme seu projeto (Laravel, PHPUnit, etc.).
+// Este arquivo foi gerado automaticamente na instalação do pacote.
+return [
+    // Exemplo para Laravel
+    'test_command' => 'php artisan test --env=testing',
+    // Alternativa: PHPUnit puro
+    // 'test_command' => 'vendor/bin/phpunit',
+];
+PHP;
+
+        // Tentar gravar o stub; se falhar, apenas logar aviso e seguir
+        try {
+            file_put_contents($configPath, $stub);
+            if (is_callable([$this->io, 'write'])) {
+                $this->io->write("<info>[git-pre-push]</info> Arquivo de configuração criado: $configPath");
+            }
+        } catch (\Throwable $e) {
+            if (is_callable([$this->io, 'write'])) {
+                $this->io->write("<comment>[git-pre-push]</comment> Não foi possível criar $configPath: " . $e->getMessage());
+            }
         }
     }
 }
