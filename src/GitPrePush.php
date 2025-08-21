@@ -5,6 +5,8 @@ namespace GitPrePush;
 use GitPrePush\Config\Config;
 use GitPrePush\Listener\HookListenerInterface;
 use GitPrePush\Event\HookEvent;
+use GitPrePush\Listener\PrePushListener;
+use GitPrePush\Service\TestService;
 
 class GitPrePush
 {
@@ -27,6 +29,11 @@ class GitPrePush
         if ($env === 'production') {
             echo "[INFO] APP_ENV=production detectado. Pulando testes e permitindo push.\n";
             return;
+        }
+
+        // Auto-wire default listener if none was provided
+        if (empty($this->listeners)) {
+            $this->addListener(new PrePushListener(new TestService($this->config)));
         }
 
         $event = new HookEvent('pre-push', ['env' => $env]);

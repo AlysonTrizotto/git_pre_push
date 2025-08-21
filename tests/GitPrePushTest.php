@@ -1,68 +1,63 @@
 <?php
 use PHPUnit\Framework\TestCase;
 use GitPrePush\GitPrePush;
+use GitPrePush\Listener\HookListenerInterface;
+use GitPrePush\Event\HookEvent;
+use GitPrePush\Service\TestService;
+use GitPrePush\Config\Config;
 
 class GitPrePushTest extends TestCase
 {
-    public function testRunSkipsTestsInProduction()
+    protected function tearDown(): void
     {
-        $hook = new GitPrePush(environment: 'production');
+        // Clean APP_ENV after tests
+        putenv('APP_ENV');
+    }
+
+    public function testRunSkipsTestsInProduction(): void
+    {
+        putenv('APP_ENV=production');
+        $hook = new GitPrePush();
         ob_start();
         $hook->run();
         $output = ob_get_clean();
         $this->assertStringContainsString('Pulando testes', $output);
     }
 
-    public function testRunFailsWithoutPHP()
+    public function testDispatchesRegisteredListener(): void
     {
-        $hook = $this->getMockBuilder(GitPrePush::class)
-            ->setMethods(['phpAvailable'])
-            ->getMock();
-        $hook->method('phpAvailable')->willReturn(false);
+        putenv('APP_ENV=development');
+
+        $hook = new GitPrePush();
+
+        $listener = $this->createMock(HookListenerInterface::class);
+        $listener->expects($this->once())
+            ->method('handle')
+            ->with($this->isInstanceOf(HookEvent::class));
+
+        $hook->addListener($listener);
+
         ob_start();
         $hook->run();
-        $output = ob_get_clean();
-        $this->assertStringContainsString('PHP não encontrado', $output);
+        ob_end_clean();
     }
 
-    public function testRunFailsWithoutTestCommand()
+    public function testTestServiceRunTestsSuccessAndFailure(): void
     {
-        $hook = $this->getMockBuilder(GitPrePush::class)
-            ->setMethods(['phpAvailable', 'testCommandAvailable'])
-            ->getMock();
-        $hook->method('phpAvailable')->willReturn(true);
-        $hook->method('testCommandAvailable')->willReturn(false);
-        ob_start();
-        $hook->run();
-        $output = ob_get_clean();
-        $this->assertStringContainsString('Abortando', $output);
-    }
+        // Success case (exit 0)
+        $configSuccess = new class extends Config {
+            public function __construct() {}
+            public function get(string $key, $default = null) { return 'php -r "exit(0);"'; }
+        };
+        $serviceSuccess = new TestService($configSuccess);
+        $this->assertTrue($serviceSuccess->runTests());
 
-    public function testRunPassesWhenTestsSucceed()
-    {
-        $hook = $this->getMockBuilder(GitPrePush::class)
-            ->setMethods(['phpAvailable', 'testCommandAvailable', 'runTestCommand'])
-            ->getMock();
-        $hook->method('phpAvailable')->willReturn(true);
-        $hook->method('testCommandAvailable')->willReturn(true);
-        $hook->method('runTestCommand')->willReturn(0);
-        ob_start();
-        $hook->run();
-        $output = ob_get_clean();
-        $this->assertStringContainsString('Todos os testes passaram', $output);
-    }
-
-    public function testRunFailsWhenTestsFail()
-    {
-        $hook = $this->getMockBuilder(GitPrePush::class)
-            ->setMethods(['phpAvailable', 'testCommandAvailable', 'runTestCommand'])
-            ->getMock();
-        $hook->method('phpAvailable')->willReturn(true);
-        $hook->method('testCommandAvailable')->willReturn(true);
-        $hook->method('runTestCommand')->willReturn(1);
-        ob_start();
-        $hook->run();
-        $output = ob_get_clean();
-        $this->assertStringContainsString('Testes falharam', $output);
+        // Failure case (exit 1)
+        $configFail = new class extends Config {
+            public function __construct() {}
+            public function get(string $key, $default = null) { return 'php -r "exit(1);"'; }
+        };
+        $serviceFail = new TestService($configFail);
+        $this->assertFalse($serviceFail->runTests());
     }
 }

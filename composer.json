@@ -1,7 +1,7 @@
 {
   "name": "alysontrizotto/git-pre-push",
   "description": "Biblioteca PHP para hooks de pre-push no Git.",
-  "type": "library",
+  "type": "composer-plugin",
   "license": "MIT",
   "autoload": {
     "psr-4": {
@@ -9,17 +9,17 @@
     }
   },
   "require": {
-    "php": ">=7.4"
+    "php": ">=7.4",
+    "composer-plugin-api": "^2.0"
+  },
+  "require-dev": {
+    "composer/composer": "^2.6",
+    "phpunit/phpunit": "^9.6"
   },
   "bin": [
     "bin/git-pre-push"
   ],
-  "scripts": {
-    "post-install-cmd": [
-      "php vendor/bin/git-pre-push install-hook"
-    ],
-    "post-update-cmd": [
-      "php vendor/bin/git-pre-push install-hook"
-    ]
+  "extra": {
+    "class": "GitPrePush\\Composer\\Plugin"
   }
 }

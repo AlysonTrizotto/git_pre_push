@@ -8,13 +8,49 @@ Biblioteca PHP para automatizar o hook `pre-push` do Git, executando testes ante
 composer require alysontrizotto/git-pre-push
 ```
 
+Para instalar apenas em desenvolvimento (recomendado):
+
+```bash
+composer require --dev alysontrizotto/git-pre-push
+```
+
+Em ambientes de produção/CI com `composer install --no-dev`, este pacote não será instalado e o plugin não será executado (nenhum hook será instalado/alterado nesses ambientes).
+
 ## Instalação automática do hook
 
-Após instalar, o hook será criado automaticamente em `.git/hooks/pre-push`.
-Se necessário, execute manualmente:
+Este pacote agora é um Composer Plugin. Ao instalar/atualizar via Composer, o hook é criado automaticamente em `.git/hooks/pre-push`.
+
+Se necessário, você pode executar manualmente:
 
 ```bash
 php vendor/bin/git-pre-push install-hook
+```
+
+Observação (Composer >= 2.2): é necessário permitir plugins no `composer.json` do projeto raiz:
+
+```json
+{
+  "config": {
+    "allow-plugins": {
+      "alysontrizotto/git-pre-push": true
+    }
+  }
+}
+```
+
+## Exemplo de composer.json (projeto consumidor)
+
+```json
+{
+  "require-dev": {
+    "alysontrizotto/git-pre-push": "^1.0"
+  },
+  "config": {
+    "allow-plugins": {
+      "alysontrizotto/git-pre-push": true
+    }
+  }
+}
 ```
 
 ## Pré-requisitos
@@ -43,6 +79,16 @@ return [
 ## Uso avançado
 
 Você pode estender a biblioteca usando listeners, eventos e services para customizar o fluxo do hook.
+
+## Desinstalação
+
+O hook é removido automaticamente quando o pacote é desinstalado via Composer (graças ao plugin). Como alternativa, você pode remover manualmente:
+
+```bash
+php vendor/bin/git-pre-push uninstall-hook
+```
+
+- Segurança: o hook gerado contém verificações para não bloquear o push se o pacote não estiver mais instalado (por exemplo, quando `vendor/autoload.php` não existe ou a classe `GitPrePush\GitPrePush` não está disponível).
 
 ## Solução de problemas
 
